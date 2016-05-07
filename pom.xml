@@ -4,7 +4,8 @@
 
     <groupId>com.codepoetics</groupId>
     <artifactId>klenses</artifactId>
-    <version>0.2-SNAPSHOT</version>
+    <version>0.2</version>
+    <packaging>pom</packaging>
 
     <parent>
         <groupId>org.sonatype.oss</groupId>
