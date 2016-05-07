@@ -1,23 +1,7 @@
-package com.codepoetics.oktarine
+package com.codepoetics.klenses
 
 import kotlin.reflect.KClass
 import kotlin.reflect.KProperty1
-
-interface Arrow<I, O> {
-    fun arrow(i: I): O
-}
-
-interface OpArrow<I, O> {
-    fun opArrow(o: O): I
-}
-
-interface Iso<I, O> : Arrow<I, O>, OpArrow<I, O> {
-
-    companion object {
-        fun <I, O> of(arrow: Arrow<I, O>, opArrow: OpArrow<I, O>): Iso<I, O> =
-                object : Arrow<I, O> by arrow, OpArrow<I, O> by opArrow, Iso<I, O>
-    }
-}
 
 interface Lens<T, V> {
     fun get(t: T): V
