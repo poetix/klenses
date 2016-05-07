@@ -4,6 +4,8 @@ Lenses for Kotlin.
 [![Maven Central](https://img.shields.io/maven-central/v/com.codepoetics/klenses.svg)](http://search.maven.org/#search%7Cga%7C1%7Cklenses)
 [![Build Status](https://travis-ci.org/poetix/klenses.svg?branch=master)](https://travis-ci.org/poetix/klenses)
 
+Lenses are property references with some extra abilities: they can also be used to create a copy of an object with the property set to a different value, and they compose to form pointers into nested objects.
+
 ```kotlin
 data class Inner(val value: String)
 data class Outer(val outerValue: String, val inner: Inner?)
