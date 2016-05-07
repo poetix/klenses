@@ -1,61 +1,73 @@
 package com.codepoetics.klenses
 
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.ConcurrentMap
+import kotlin.reflect.KCallable
 import kotlin.reflect.KClass
+import kotlin.reflect.KFunction
 import kotlin.reflect.KProperty1
 
+class Iso<I, O>(val arrow: (I) -> O, val opArrow: (O) -> I) {
+    val op: Iso<O, I> by lazy { Iso(opArrow, arrow) }
+}
+
 interface Lens<T, V> {
+
+    companion object {
+        fun <T, V> of(getter: (T) -> V, setter: (T, V) -> T): Lens<T, V> = object : Lens<T, V> {
+            override fun get(t: T): V = getter(t)
+            override fun set(t: T, v: V): T = setter(t, v)
+        }
+    }
+
     fun get(t: T): V
     fun set(t: T, v: V): T
+
+    fun <V2> map(iso: Iso<V, V2>): Lens<T, V2> = Lens.of(
+            { t -> iso.arrow(get(t)) },
+            { t, v2 -> set(t, iso.opArrow(v2)) }
+    )
 
     operator fun invoke(t: T): V = get(t)
     operator fun invoke(t: T, v: V): T = set(t, v)
 
-    operator fun <V1> plus(next: Lens<V, V1>): Lens<T, V1> = object : Lens<T, V1> {
-        override fun get(t: T): V1 = next.get(this@Lens.get(t))
-
-        override fun set(t: T, v: V1): T = this@Lens.set(t, next.set(this@Lens.get(t), v))
-    }
+    operator fun <V1> plus(next: Lens<V, V1>): Lens<T, V1> = Lens.of(
+            { t -> next.get(this@Lens.get(t)) },
+            { t, v -> this@Lens.set(t, next.set(this@Lens.get(t), v)) }
+    )
 }
 
-infix fun <T, V> Lens<T, V?>.orElse(default: V): Lens<T, V> {
-    val self = this
-    return object : Lens<T, V> {
-        override fun get(t: T): V = self.get(t) ?: default
-        override fun set(t: T, v: V): T = self.set(t, v)
-    }
-}
+infix fun <T, V> Lens<T, V?>.orElse(default: V): Lens<T, V> = Lens.of(
+    { t ->  this.get(t) ?: default },
+    { t, v ->  this.set(t, v) })
 
-data class KPropertyLens<T : Any, V>(val kclass: KClass<T>, val property: KProperty1<T, V>) : Lens<T, V> {
-    override fun set(t: T, v: V): T {
-        val propertyValues = kclass.members.filter { it is KProperty1<*, *> }
-                .map { if (it.name.equals(property.name)) it.name to v else it.name to it.call(t) }
+class PropertyMapper<T : Any>(
+        val constructor: KFunction<T>,
+        val members: Array<KCallable<*>>) {
+
+    companion object {
+        private val cache: ConcurrentMap<KClass<*>, PropertyMapper<*>> = ConcurrentHashMap()
+
+        fun <T : Any> forKClass(kclass: KClass<T>): PropertyMapper<T> =
+            cache.computeIfAbsent(kclass, { forKClassUncached(it) }) as PropertyMapper<T>
+
+        private fun <T : Any >forKClassUncached(kclass: KClass<T>): PropertyMapper<T> {
+            val propertiesByName = kclass.members.filter { it is KProperty1<*, *> }
+                .map { it.name to it }
                 .toMap()
-        val constructor = kclass.constructors.find { it.parameters.size == propertyValues.size }!!
-        val args = constructor.parameters.map { propertyValues[it.name] }.toTypedArray()
-        return constructor.call(*args)
+            val constructor = kclass.constructors.find { it.parameters.size == propertiesByName.size }!!
+            val members = constructor.parameters.map { propertiesByName[it.name!!]!! }.toTypedArray()
+            return PropertyMapper(constructor, members)
+        }
     }
 
-    override fun get(t: T): V = property.get(t)
+    fun <V> copy(source: T, property: KCallable<*>, value: V): T = constructor.call(*members.map {
+        if (it == property) value else it.call(source)
+    }.toTypedArray())
+
+    fun <V> setterFor(property: KProperty1<T, V>): (T, V) -> T = { t, v -> copy(t, property, v) }
 }
 
-inline fun <reified T : Any, V> KProperty1<T, V>.lens() = KPropertyLens(T::class, this)
-
-data class Inner(val ping: String)
-data class Foo(val bar: String, val baz: Inner?)
-
-fun main(argv: Array<String>): Unit {
-    val foo = Foo("baz", null)
-
-    val barLens = Foo::bar.lens()
-    val bazLens = Foo::baz.lens() orElse Inner("pang")
-    val pingLens = Inner::ping.lens()
-    val bazPingLens = bazLens + pingLens
-
-    val foo2 = barLens(foo, "quux")
-    val foo3 = bazPingLens(foo2, "pong")
-
-    println(bazLens(foo))
-    println(foo)
-    println(foo2)
-    println(foo3)
-}
+inline fun <reified T : Any, V> KProperty1<T, V>.lens(): Lens<T, V> = Lens.of(
+        this,
+        PropertyMapper.forKClass(T::class).setterFor(this))
