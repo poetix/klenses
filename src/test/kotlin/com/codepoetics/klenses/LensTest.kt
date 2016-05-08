@@ -21,4 +21,15 @@ class LensTest {
         assertEquals(Inner("xyzzy"), innerLens(foo))
         assertEquals(Outer("foo", Inner("frobnitz")), innerValueLens(foo, "frobnitz"))
     }
+
+    @Test fun updating(): Unit {
+        data class Inner(val value: Int)
+        data class Outer(val outerValue: String, val inner: Inner)
+
+        val foo = Outer("foo", Inner(23))
+
+        val innerValueLens = Outer::inner.lens() + Inner::value.lens()
+
+        assertEquals(Outer("foo", Inner(46)), innerValueLens(foo) { times(2) })
+    }
 }

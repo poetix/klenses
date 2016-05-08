@@ -30,6 +30,7 @@ interface Lens<T, V> {
 
     operator fun invoke(t: T): V = get(t)
     operator fun invoke(t: T, v: V): T = set(t, v)
+    operator fun invoke(t: T, update: V.() -> V): T = set(t, get(t).update())
 
     operator fun <V1> plus(next: Lens<V, V1>): Lens<T, V1> = Lens.of(
             { t -> next.get(this@Lens.get(t)) },
@@ -48,6 +49,7 @@ class PropertyMapper<T : Any>(
     companion object {
         private val cache: ConcurrentMap<KClass<*>, PropertyMapper<*>> = ConcurrentHashMap()
 
+        @Suppress("UNCHECKED_CAST")
         fun <T : Any> forKClass(kclass: KClass<T>): PropertyMapper<T> =
             cache.computeIfAbsent(kclass, { forKClassUncached(it) }) as PropertyMapper<T>
 
