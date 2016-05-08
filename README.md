@@ -21,4 +21,5 @@ assertEquals("foo", outerValueLens(foo))
 assertEquals(Outer("quux", null), outerValueLens(foo, "quux"))
 assertEquals(Inner("xyzzy"), innerLens(foo))
 assertEquals(Outer("foo", Inner("frobnitz")), innerValueLens(foo, "frobnitz"))
+assertEquals(Outer("foo", Inner("XYZZY")), innerValueLens(foo) { toUpperCase() })
 ```
