@@ -14,7 +14,7 @@ val foo = Outer("foo", null)
 
 val outerValueLens = +Outer::outerValue
 val innerLens = Outer::inner orElse Inner("xyzzy")
-val innerValueLens = Outer::outerValue + Inner::value 
+val innerValueLens = innerLens + Inner::value 
 
 assertEquals("foo", outerValueLens(foo))
 assertEquals(Outer("quux", null), outerValueLens(foo, "quux"))
