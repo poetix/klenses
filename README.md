@@ -12,10 +12,9 @@ data class Outer(val outerValue: String, val inner: Inner?)
 
 val foo = Outer("foo", null)
 
-val outerValueLens = Outer::outerValue.lens()
-val innerLens = Outer::inner.lens() orElse Inner("xyzzy")
-val valueLens = Inner::value.lens()
-val innerValueLens = innerLens + valueLens
+val outerValueLens = +Outer::outerValue
+val innerLens = Outer::inner orElse Inner("xyzzy")
+val innerValueLens = Outer::outerValue + Inner::value 
 
 assertEquals("foo", outerValueLens(foo))
 assertEquals(Outer("quux", null), outerValueLens(foo, "quux"))
