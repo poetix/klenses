@@ -24,9 +24,9 @@ interface Lens<T, V> {
     fun set(t: T, v: V): T
     fun update(t: T, update: V.() -> V): T = set(t, get(t).update())
 
-    operator fun <V2> mod(iso: Iso<V, V2>): Lens<T, V2> = Lens.of(
-            { t -> iso.arrow(get(t)) },
-            { t, v2 -> set(t, iso.opArrow(v2)) }
+    operator fun <V2> rem(iso: Iso<V, V2>): Lens<T, V2> = Lens.of(
+        { t -> iso.arrow(get(t)) },
+        { t, v2 -> set(t, iso.opArrow(v2)) }
     )
 
     operator fun invoke(t: T): V = get(t)
@@ -34,30 +34,30 @@ interface Lens<T, V> {
     operator fun invoke(t: T, update: V.() -> V): T = update(t, update)
 
     operator fun <V1> plus(next: Lens<V, V1>): Lens<T, V1> = Lens.of(
-            { t -> next.get(get(t)) },
-            { t, v -> set(t, next.set(get(t), v)) }
+        { t -> next.get(get(t)) },
+        { t, v -> set(t, next.set(get(t), v)) }
     )
 }
 
 // property.lens() = lens
 inline fun <reified T : Any, V> KProperty1<T, V>.lens(): Lens<T, V> = Lens.of(
-        this,
-        PropertyMapper.forKClass(T::class).setterFor(this))
+    this,
+    PropertyMapper.forKClass(T::class).setterFor(this))
 
 // +property = lens
 inline operator fun <reified T : Any, V> KProperty1<T, V>.unaryPlus(): Lens<T, V> = this.lens()
 
 // Lens + property = lens
 inline operator fun <reified T : Any, reified V : Any, V1> Lens<T, V>.plus(next: KProperty1<V, V1>): Lens<T, V1> =
-        this + next.lens()
+    this + next.lens()
 
 // Property + property = lens
 inline operator fun <reified T : Any, reified V : Any, V1> KProperty1<T, V>.plus(next: KProperty1<V, V1>): Lens<T, V1> =
-        this.lens() + next.lens()
+    this.lens() + next.lens()
 
 // Property + lens = lens
 inline operator fun <reified T : Any, reified V : Any, V1> KProperty1<T, V>.plus(next: Lens<V, V1>): Lens<T, V1> =
-        this.lens() + next
+    this.lens() + next
 
 // Default value for nullable lens
 infix fun <T, V> Lens<T, V?>.orElse(default: V): Lens<T, V> = Lens.of(
@@ -68,7 +68,7 @@ infix fun <T, V> Lens<T, V?>.orElse(default: V): Lens<T, V> = Lens.of(
 inline infix fun <reified T : Any, V> KProperty1<T, V?>.orElse(default: V): Lens<T, V> = this.lens() orElse default
 
 // Modulo for property
-inline operator fun <reified T : Any, V, V1> KProperty1<T, V>.mod(iso: Iso<V, V1>): Lens<T, V1> = this.lens() % iso
+inline operator fun <reified T : Any, V, V1> KProperty1<T, V>.rem(iso: Iso<V, V1>): Lens<T, V1> = this.lens() % iso
 
 // Property.get
 inline fun <reified T : Any, V> KProperty1<T, V>.get(t: T): V = this.lens().get(t)
@@ -82,10 +82,16 @@ inline operator fun <reified T : Any, V> KProperty1<T, V>.invoke(t: T, v: V): T 
 inline fun <reified T : Any, V> KProperty1<T, V>.update(t: T, noinline update: V.() -> V): T = this.lens().update(t, update)
 inline operator fun <reified T : Any, V> KProperty1<T, V>.invoke(t: T, noinline update: V.() -> V): T = this.lens()(t, update)
 
+// Use when property is a List
+inline fun <reified T,  V> Lens<T, List<V>>.map(t: T, transform: V.() ->V): T =
+    set(t, get(t).map {
+        it.transform()
+    })
+
 class PropertyMapper<T : Any>(
-        val constructor: KFunction<T>,
-        val members: Array<KCallable<*>>,
-        val updatableMembers: Set<KCallable<*>>) {
+    val constructor: KFunction<T>,
+    val members: Array<KCallable<*>>,
+    val updatableMembers: Set<KCallable<*>>) {
 
     companion object {
         private val cache: ConcurrentMap<KClass<*>, PropertyMapper<*>> = ConcurrentHashMap()
@@ -111,6 +117,6 @@ class PropertyMapper<T : Any>(
     }.toTypedArray())
 
     fun <V> setterFor(property: KProperty1<T, V>): (T, V) -> T =
-            if (updatableMembers.contains(property)) { t, v -> copy(t, property, v) }
-            else throw IllegalArgumentException("Property $property not used in constructor $constructor")
+        if (updatableMembers.contains(property)) { t, v -> copy(t, property, v) }
+        else throw IllegalArgumentException("Property $property not used in constructor $constructor")
 }
