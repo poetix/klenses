@@ -4,7 +4,7 @@
 
     <groupId>com.codepoetics</groupId>
     <artifactId>klenses</artifactId>
-    <version>0.5-SNAPSHOT</version>
+    <version>0.6-SNAPSHOT</version>
     <packaging>pom</packaging>
 
     <parent>
